@@ -16,19 +16,25 @@
 // edit the config.h tab and enter your Adafruit IO credentials
 // and any additional configuration needed for WiFi, cellular,
 // or ethernet clients.
+#include <math.h>
 #include "config.h"
 
 /************************ Example Starts Here *******************************/
 
-// analog pin 0
-#define PHOTOCELL_PIN A0
-
-// photocell state
-int current = 0;
-int last = -1;
+const int B = 4275; // B value of the thermistor
+const int R0 = 100000; // R0 = 100k
+const int pinTempSensor = 5; // Grove - Temperature Sensor connect to A0
+ 
+#if defined(ARDUINO_ARCH_AVR)
+#define debug Serial
+#elif defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_SAM)
+#define debug SerialUSB
+#else
+#define debug Serial
+#endif
 
 // set up the 'analog' feed
-AdafruitIO_Feed *analog = io.feed("analog");
+AdafruitIO_Feed *analog = io.feed("temp");
 
 void setup() {
 
@@ -62,24 +68,26 @@ void loop() {
   // io.adafruit.com, and processes any incoming data.
   io.run();
 
-  // grab the current state of the photocell
-  current = analogRead(PHOTOCELL_PIN);
+  int a = analogRead(pinTempSensor);
+ 
+  float R = 1023.0/a-1.0;
+  R = R0*R;
 
-  // return if the value hasn't changed
-  if(current == last)
-    return;
+  float temperature = 1.0/(log(R/R0)/B+1/298.15)-273.15; // convert to temperature via datasheet
 
-  // save the current state to the analog feed
-  Serial.print("sending -> ");
-  Serial.println(current);
-  analog->save(current);
+  Serial.print("temperature = ");
+  Serial.println(temperature);
+  Serial.println(a);
 
-  // store last photocell state
-  last = current;
+  delay(100);
+
+  // Serial.print("sending -> ");
+  // Serial.println(temperature);
+  // analog->save(temperature);
 
   // wait three seconds (1000 milliseconds == 1 second)
   //
   // because there are no active subscriptions, we can use delay()
   // instead of tracking millis()
-  delay(3000);
+  // delay(3000);
 }
